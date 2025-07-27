@@ -72,7 +72,8 @@ blueprint:
           options:
             - "below_horizon"
             - "above_horizon"
-          input: condition_type
+      show_if:
+        - input: condition_type
           value: sun
 
     sunset_offset:
@@ -83,7 +84,8 @@ blueprint:
       default: "00:00:00"
       selector:
         time:
-          input: condition_type
+      show_if:
+        - input: condition_type
           value: sun
 
     sunrise_offset:
@@ -94,7 +96,8 @@ blueprint:
       default: "00:00:00"
       selector:
         time:
-          input: condition_type
+      show_if:
+        - input: condition_type
           value: sun
 
     time_start:
@@ -102,7 +105,8 @@ blueprint:
       description: "Time to start turning the light on (e.g. 18:00:00)."
       selector:
         time:
-          input: condition_type
+      show_if:
+        - input: condition_type
           value: time
 
     time_end:
@@ -110,7 +114,8 @@ blueprint:
       description: "Time to stop turning the light on (e.g. 06:00:00)."
       selector:
         time:
-          input: condition_type
+      show_if:
+        - input: condition_type
           value: time
 
     # --- Light Settings ---
@@ -180,7 +185,7 @@ condition:
           {{ now() >= (sunset - sunset_offset_delta) or now() <= (sunrise + sunrise_offset_delta) }}
         {% endif %}
       {% elif condition_type == 'time' %}
-        {% if time_start is defined and time_end is defined %}
+        {% if time_start is defined and time_start != none and time_end is defined and time_end != none %}
           {% set time_now = now() %}
           {% set time_start_obj = today_at(time_start) %}
           {% set time_end_obj = today_at(time_end) %}
@@ -200,11 +205,10 @@ action:
   - service: light.turn_on
     target: !input light_target
     data:
-      brightness_pct: >-
-        "{{ brightness_pct if brightness_pct is defined else omit }}"
-      kelvin: "{{ color_temp if color_temp is defined else omit }}"
+      brightness_pct: "{{ brightness_pct if brightness_pct not in [none, ''] else omit }}"
+      kelvin: "{{ color_temp if color_temp not in [none, ''] else omit }}"
       rgb_color: >-
-        {{ rgb_color if color_temp is not defined and rgb_color is defined
+        {{ rgb_color if color_temp in [none, ''] and rgb_color not in [none, '']
         else omit }}
 
   - wait_template: >-
