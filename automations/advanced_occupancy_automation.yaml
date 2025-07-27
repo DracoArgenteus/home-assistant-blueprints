@@ -3,7 +3,7 @@ blueprint:
   description: >-
     A comprehensive motion/occupancy-activated light control blueprint.
     Turns on lights when occupancy is detected and turns them off after a delay.
-    Includes advanced, optional conditions for sun position (with offsets) and fixed time ranges.
+    Includes advanced, optional conditions for sun position and fixed time ranges.
     Based on blueprints by @Aleks130699, @iainsmacleod, and @home-assistant.
   author: DracoArgenteus
   source_url: https://github.com/DracoArgenteus/automations/heads/main/advanced_occupancy_automation.yaml
@@ -56,27 +56,13 @@ blueprint:
 
     sun_condition_mode:
       name: Sun Condition
-      description: "Turn on the light only when the sun is above or below the horizon. The 'below horizon' option allows for offsets."
+      description: "Turn on the light only when the sun is above or below the horizon."
       default: "below_horizon"
       selector:
         select:
           options:
             - "below_horizon"
             - "above_horizon"
-
-    sunset_offset:
-      name: Sunset Offset (for 'below horizon' mode)
-      description: "Turn on lights this much time BEFORE sunset. (e.g. 00:30:00 for 30 mins before)."
-      default: "00:00:00"
-      selector:
-        time:
-
-    sunrise_offset:
-      name: Sunrise Offset (for 'below horizon' mode)
-      description: "Keep lights on this much time AFTER sunrise. (e.g. 00:45:00 for 45 mins after)."
-      default: "00:00:00"
-      selector:
-        time:
 
     time_after:
       name: "Time: After"
@@ -103,7 +89,7 @@ blueprint:
 
     color_temp:
       name: Color Temperature (Kelvin)
-      description: "Color temperature in Kelvin. Overrides RGB Color if both are set."
+      description: "Color temperature in Kelvin. Overrides RGB Color if set."
       default:
       selector:
         number:
@@ -124,10 +110,12 @@ mode: restart
 variables:
   condition_type: !input condition_type
   sun_condition_mode: !input sun_condition_mode
-  sunset_offset: !input sunset_offset
-  sunrise_offset: !input sunrise_offset
   time_after: !input time_after
   time_before: !input time_before
+  # Assign inputs to variables for use in templates
+  brightness_pct: !input brightness_pct
+  color_temp: !input color_temp
+  rgb_color: !input rgb_color
 
 trigger:
   - platform: state
@@ -163,20 +151,7 @@ condition:
         {% endif %}
       {#- Logic for Sun Position -#}
       {% elif condition_type == 'sun' %}
-        {% if sun_condition_mode == 'above_horizon' %}
-          {{ is_state('sun.sun', 'above_horizon') }}
-        {% else %}
-          {#- For 'below_horizon', calculate trigger window with offsets -#}
-          {% set sunset_offset_parts = sunset_offset.split(':') %}
-          {% set sunset_offset_delta = timedelta(hours=sunset_offset_parts[0]|int, minutes=sunset_offset_parts[1]|int, seconds=sunset_offset_parts[2]|int) %}
-          {% set sunrise_offset_parts = sunrise_offset.split(':') %}
-          {% set sunrise_offset_delta = timedelta(hours=sunrise_offset_parts[0]|int, minutes=sunrise_offset_parts[1]|int, seconds=sunrise_offset_parts[2]|int) %}
-
-          {% set start_time = (state_attr('sun.sun', 'next_setting') | as_datetime | as_local) - sunset_offset_delta %}
-          {% set end_time = (state_attr('sun.sun', 'next_rising') | as_datetime | as_local) + sunrise_offset_delta %}
-
-          {{ now() >= start_time or now() <= end_time }}
-        {% endif %}
+        {{ is_state('sun.sun', sun_condition_mode) }}
       {% endif %}
 
 action:
@@ -185,18 +160,13 @@ action:
     target: !input light_target
     data: >
       {%- set light_data = {} -%}
-      {%- if state('input_select.your_light_mode') == 'Bright' -%}
-        {%- set brightness_pct = 100 -%}
-      {%- else -%}
-        {%- set brightness_pct = !input brightness_pct -%}
-      {%- endif -%}
-      {%- if brightness_pct is defined and brightness_pct != '' -%}
+      {%- if brightness_pct is defined and brightness_pct != none and brightness_pct != '' -%}
         {%- do light_data.update({'brightness_pct': brightness_pct}) -%}
       {%- endif -%}
-      {%- if !input color_temp is defined and !input color_temp != '' -%}
-        {%- do light_data.update({'kelvin': !input color_temp}) -%}
-      {%- elif !input rgb_color is defined and !input rgb_color != '' -%}
-        {%- do light_data.update({'rgb_color': !input rgb_color}) -%}
+      {%- if color_temp is defined and color_temp != none and color_temp != '' -%}
+        {%- do light_data.update({'kelvin': color_temp}) -%}
+      {%- elif rgb_color is defined and rgb_color != none and rgb_color != '' -%}
+        {%- do light_data.update({'rgb_color': rgb_color}) -%}
       {%- endif -%}
       {{ light_data | to_json }}
 
