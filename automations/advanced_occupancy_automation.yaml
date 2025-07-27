@@ -2,17 +2,13 @@ blueprint:
   name: Advanced Occupancy Light Control
   description: >-
     A comprehensive motion/occupancy-activated light control blueprint.
-
-    Merges features from the official HA blueprint, Aleks130699's, and iainsmacleod's versions.
-
-    - Turns on lights when occupancy is detected.
-    - Keeps them on while occupancy persists.
-    - Turns them off after a configurable delay when the area is clear.
-    - Optional conditions for time of day, sun elevation (with offsets), and custom user-defined logic.
-    - Control brightness, color temperature, and RGB color.
+    Turns on lights when occupancy is detected and turns them off after a delay.
+    Includes advanced, optional conditions for sun position (with offsets) and fixed time ranges.
+    Based on blueprints by @Aleks130699, @iainsmacleod, and @home-assistant.
   author: DracoArgenteus
   source_url: https://github.com/DracoArgenteus/automations/heads/main/advanced_occupancy_automation.yaml
   domain: automation
+
   input:
     occupancy_sensor:
       name: Occupancy Sensor
@@ -35,7 +31,7 @@ blueprint:
 
     turn_off_delay:
       name: Turn-off delay
-      description: Time in seconds to wait before turning off the light after occupancy is no longer detected.
+      description: Time to wait before turning off the light after occupancy is no longer detected.
       default: 120
       selector:
         number:
@@ -51,16 +47,16 @@ blueprint:
       selector:
         select:
           options:
-            - label: "Always on"
+            - label: "Always On"
               value: "none"
-            - label: "Sun position"
+            - label: "Sun Position"
               value: "sun"
-            - label: "Fixed time range"
+            - label: "Fixed Time Range"
               value: "time"
 
-    sun_condition:
-      name: Sun Condition (if selected)
-      description: "Turn on the light only when the sun is above or below the horizon."
+    sun_condition_mode:
+      name: Sun Condition
+      description: "Turn on the light only when the sun is above or below the horizon. The 'below horizon' option allows for offsets."
       default: "below_horizon"
       selector:
         select:
@@ -68,16 +64,16 @@ blueprint:
             - "below_horizon"
             - "above_horizon"
 
-    sun_before_offset:
-      name: Sun-based "On" Offset
-      description: "Offset for turning the lights on (e.g., turn on 30 minutes before sunset)."
+    sunset_offset:
+      name: Sunset Offset (for 'below horizon' mode)
+      description: "Turn on lights this much time BEFORE sunset. (e.g. 00:30:00 for 30 mins before)."
       default: "00:00:00"
       selector:
         time:
 
-    sun_after_offset:
-      name: Sun-based "Off" Offset
-      description: "Offset for turning the lights off (e.g., keep on for 1 hour after sunrise)."
+    sunrise_offset:
+      name: Sunrise Offset (for 'below horizon' mode)
+      description: "Keep lights on this much time AFTER sunrise. (e.g. 00:45:00 for 45 mins after)."
       default: "00:00:00"
       selector:
         time:
@@ -123,55 +119,64 @@ blueprint:
       selector:
         color_rgb:
 
-# Use 'restart' mode to ensure that if occupancy is re-triggered while the
-# "turn off" sequence is running, the automation restarts from the beginning.
 mode: restart
 
-# Define variables to hold our inputs for cleaner logic in the actions.
 variables:
-  occupancy_sensor: !input occupancy_sensor
-  light_target: !input light_target
-  turn_off_delay: !input turn_off_delay
   condition_type: !input condition_type
-  sun_condition: !input sun_condition
-  sun_before_offset: !input sun_before_offset
-  sun_after_offset: !input sun_after_offset
+  sun_condition_mode: !input sun_condition_mode
+  sunset_offset: !input sunset_offset
+  sunrise_offset: !input sunrise_offset
   time_after: !input time_after
   time_before: !input time_before
-  brightness_pct: !input brightness_pct
-  color_temp: !input color_temp
-  rgb_color: !input rgb_color
 
-# This automation is triggered when the occupancy sensor changes state from 'off' to 'on'.
-# This is the standard and most reliable way to detect the start of presence.
 trigger:
   - platform: state
     entity_id: !input occupancy_sensor
     from: "off"
     to: "on"
+    # Wait for the sensor to be 'on' for a second to avoid false triggers
+    for:
+      seconds: 1
 
-# Before turning on the light, we check our conditions.
-# This prevents the light from turning on when it shouldn't (e.g., during the day).
 condition:
   - condition: template
     value_template: >
-      {#- This template block checks which condition type was selected and evaluates it. -#}
-      {% if condition_type == 'sun' %}
-        {% if sun_condition == 'below_horizon' %}
-          {{ is_state('sun.sun', 'below_horizon') or (state_attr('sun.sun', 'elevation') | float(0)) < 0 }}
-        {% else %}
-          {{ is_state('sun.sun', 'above_horizon') }}
-        {% endif %}
+      {#- Always true if no condition is selected -#}
+      {% if condition_type == 'none' %}
+        true
+      {#- Logic for Fixed Time Range -#}
       {% elif condition_type == 'time' %}
         {% if time_after is defined and time_before is defined %}
-          {{ is_state('input_boolean.your_helper_boolean', 'on') }}
+          {% set time_now = now() %}
+          {% set time_after_obj = today_at(time_after) %}
+          {% set time_before_obj = today_at(time_before) %}
+          {% if time_after_obj < time_before_obj %}
+            {#- Time range is on the same day (e.g., 09:00 to 17:00) -#}
+            {{ time_after_obj <= time_now < time_before_obj }}
+          {% else %}
+            {#- Time range spans across midnight (e.g., 22:00 to 06:00) -#}
+            {{ time_now >= time_after_obj or time_now < time_before_obj }}
+          {% endif %}
         {% else %}
-          {# If only one time is defined, this will always pass. Both are needed for a range. #}
+          {#- If times are not defined, pass the condition -#}
           true
         {% endif %}
-      {% else %}
-        {# If condition_type is 'none' or anything else, always pass. #}
-        true
+      {#- Logic for Sun Position -#}
+      {% elif condition_type == 'sun' %}
+        {% if sun_condition_mode == 'above_horizon' %}
+          {{ is_state('sun.sun', 'above_horizon') }}
+        {% else %}
+          {#- For 'below_horizon', calculate trigger window with offsets -#}
+          {% set sunset_offset_parts = sunset_offset.split(':') %}
+          {% set sunset_offset_delta = timedelta(hours=sunset_offset_parts[0]|int, minutes=sunset_offset_parts[1]|int, seconds=sunset_offset_parts[2]|int) %}
+          {% set sunrise_offset_parts = sunrise_offset.split(':') %}
+          {% set sunrise_offset_delta = timedelta(hours=sunrise_offset_parts[0]|int, minutes=sunrise_offset_parts[1]|int, seconds=sunrise_offset_parts[2]|int) %}
+
+          {% set start_time = (state_attr('sun.sun', 'next_setting') | as_datetime | as_local) - sunset_offset_delta %}
+          {% set end_time = (state_attr('sun.sun', 'next_rising') | as_datetime | as_local) + sunrise_offset_delta %}
+
+          {{ now() >= start_time or now() <= end_time }}
+        {% endif %}
       {% endif %}
 
 action:
@@ -179,16 +184,19 @@ action:
   - service: light.turn_on
     target: !input light_target
     data: >
-      {#- This template dynamically builds the service call data. -#}
-      {#- It only includes parameters that have been defined by the user. -#}
       {%- set light_data = {} -%}
+      {%- if state('input_select.your_light_mode') == 'Bright' -%}
+        {%- set brightness_pct = 100 -%}
+      {%- else -%}
+        {%- set brightness_pct = !input brightness_pct -%}
+      {%- endif -%}
       {%- if brightness_pct is defined and brightness_pct != '' -%}
         {%- do light_data.update({'brightness_pct': brightness_pct}) -%}
       {%- endif -%}
-      {%- if color_temp is defined and color_temp != '' -%}
-        {%- do light_data.update({'kelvin': color_temp}) -%}
-      {%- elif rgb_color is defined and rgb_color != '' -%}
-        {%- do light_data.update({'rgb_color': rgb_color}) -%}
+      {%- if !input color_temp is defined and !input color_temp != '' -%}
+        {%- do light_data.update({'kelvin': !input color_temp}) -%}
+      {%- elif !input rgb_color is defined and !input rgb_color != '' -%}
+        {%- do light_data.update({'rgb_color': !input rgb_color}) -%}
       {%- endif -%}
       {{ light_data | to_json }}
 
