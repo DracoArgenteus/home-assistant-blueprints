@@ -94,12 +94,14 @@ blueprint:
     time_start:
       name: "Time: Start (for Time condition)"
       description: "Time to start turning the light on (e.g. 18:00:00)."
+      default: "00:00:00"
       selector:
         time:
 
     time_end:
       name: "Time: End (for Time condition)"
       description: "Time to stop turning the light on (e.g. 06:00:00)."
+      default: "00:00:00"
       selector:
         time:
 
