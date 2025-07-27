@@ -63,7 +63,7 @@ blueprint:
               value: "time"
 
     sun_condition_mode:
-      name: Sun Condition
+      name: Sun Condition (if type is Sun)
       description: >-
         Turn on the light only when the sun is above or below the horizon.
       default: "below_horizon"
@@ -72,9 +72,6 @@ blueprint:
           options:
             - "below_horizon"
             - "above_horizon"
-      show_if:
-        - input: condition_type
-          value: sun
 
     sunset_offset:
       name: Sunset Offset (for Sun condition)
@@ -84,9 +81,6 @@ blueprint:
       default: "00:00:00"
       selector:
         time:
-      show_if:
-        - input: condition_type
-          value: sun
 
     sunrise_offset:
       name: Sunrise Offset (for Sun condition)
@@ -96,27 +90,18 @@ blueprint:
       default: "00:00:00"
       selector:
         time:
-      show_if:
-        - input: condition_type
-          value: sun
 
     time_start:
       name: "Time: Start (for Time condition)"
       description: "Time to start turning the light on (e.g. 18:00:00)."
       selector:
         time:
-      show_if:
-        - input: condition_type
-          value: time
 
     time_end:
       name: "Time: End (for Time condition)"
       description: "Time to stop turning the light on (e.g. 06:00:00)."
       selector:
         time:
-      show_if:
-        - input: condition_type
-          value: time
 
     # --- Light Settings ---
     brightness_pct:
@@ -138,7 +123,7 @@ blueprint:
       selector:
         number:
           min: 2000
-          max: 6500
+          max: 650
           step: 100
           unit_of_measurement: "K"
 
