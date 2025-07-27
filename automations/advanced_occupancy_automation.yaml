@@ -12,11 +12,12 @@ blueprint:
 
   input:
     occupancy_sensor:
-      name: Occupancy Sensor
-      description: The binary sensor that detects presence (e.g., motion, occupancy). Must have 'on' and 'off' states.
+      name: Occupancy Sensor(s)
+      description: The binary sensor(s) that detect presence. The automation will trigger if any turn on, and wait for all to turn off.
       selector:
         entity:
           domain: binary_sensor
+          multiple: true
           device_class:
             - motion
             - occupancy
@@ -64,18 +65,42 @@ blueprint:
           options:
             - "below_horizon"
             - "above_horizon"
+          input: condition_type
+          value: sun
 
-    time_after:
-      name: "Time: After"
+    sunset_offset:
+      name: Sunset Offset (for Sun condition)
+      description: "Optional offset to start the 'below horizon' period earlier (e.g., '00:30:00' to start 30 mins before sunset)."
+      default: "00:00:00"
+      selector:
+        time:
+          input: condition_type
+          value: sun
+
+    sunrise_offset:
+      name: Sunrise Offset (for Sun condition)
+      description: "Optional offset to end the 'below horizon' period later (e.g., '00:30:00' to end 30 mins after sunrise)."
+      default: "00:00:00"
+      selector:
+        time:
+          input: condition_type
+          value: sun
+
+    time_start:
+      name: "Time: Start (for Time condition)"
       description: "Time to start turning the light on (e.g. 18:00:00)."
       selector:
         time:
+          input: condition_type
+          value: time
 
-    time_before:
-      name: "Time: Before"
+    time_end:
+      name: "Time: End (for Time condition)"
       description: "Time to stop turning the light on (e.g. 06:00:00)."
       selector:
         time:
+          input: condition_type
+          value: time
 
     # --- Light Settings ---
     brightness_pct:
@@ -109,11 +134,13 @@ blueprint:
 mode: restart
 
 variables:
+  occupancy_entities: !input occupancy_sensor
   condition_type: !input condition_type
   sun_condition_mode: !input sun_condition_mode
-  time_after: !input time_after
-  time_before: !input time_before
-  # Assign inputs to variables for use in templates
+  sunset_offset: !input sunset_offset
+  sunrise_offset: !input sunrise_offset
+  time_start: !input time_start
+  time_end: !input time_end
   brightness_pct: !input brightness_pct
   color_temp: !input color_temp
   rgb_color: !input rgb_color
@@ -123,65 +150,48 @@ trigger:
     entity_id: !input occupancy_sensor
     from: "off"
     to: "on"
-    # Wait for the sensor to be 'on' for a second to avoid false triggers
-    for:
-      seconds: 1
 
 condition:
   - condition: template
     value_template: >
-      {#- Always true if no condition is selected -#}
-      {% if condition_type == 'none' %}
-        true
-      {#- Logic for Fixed Time Range -#}
+      {% if condition_type == 'sun' %}
+        {% if sun_condition_mode == 'above_horizon' %}
+          {{ is_state('sun.sun', 'above_horizon') }}
+        {% else %}
+          {% set sunset = state_attr('sun.sun', 'next_setting') | as_datetime | as_local %}
+          {% set sunrise = state_attr('sun.sun', 'next_rising') | as_datetime | as_local %}
+          {% set sunset_offset_delta = timedelta(hours=sunset_offset.split(':')[0]|int, minutes=sunset_offset.split(':')[1]|int) %}
+          {% set sunrise_offset_delta = timedelta(hours=sunrise_offset.split(':')[0]|int, minutes=sunrise_offset.split(':')[1]|int) %}
+          {{ now() >= (sunset - sunset_offset_delta) or now() <= (sunrise + sunrise_offset_delta) }}
+        {% endif %}
       {% elif condition_type == 'time' %}
-        {% if time_after is defined and time_before is defined %}
+        {% if time_start is defined and time_end is defined %}
           {% set time_now = now() %}
-          {% set time_after_obj = today_at(time_after) %}
-          {% set time_before_obj = today_at(time_before) %}
-          {% if time_after_obj < time_before_obj %}
-            {#- Time range is on the same day (e.g., 09:00 to 17:00) -#}
-            {{ time_after_obj <= time_now < time_before_obj }}
+          {% set time_start_obj = today_at(time_start) %}
+          {% set time_end_obj = today_at(time_end) %}
+          {% if time_start_obj < time_end_obj %}
+            {{ time_start_obj <= time_now < time_end_obj }}
           {% else %}
-            {#- Time range spans across midnight (e.g., 22:00 to 06:00) -#}
-            {{ time_now >= time_after_obj or time_now < time_before_obj }}
+            {{ time_now >= time_start_obj or time_now < time_end_obj }}
           {% endif %}
         {% else %}
-          {#- If times are not defined, pass the condition -#}
           true
         {% endif %}
-      {#- Logic for Sun Position -#}
-      {% elif condition_type == 'sun' %}
-        {{ is_state('sun.sun', sun_condition_mode) }}
+      {% else %}
+        true
       {% endif %}
 
 action:
-  # 1. Turn on the light
   - service: light.turn_on
     target: !input light_target
-    data: >
-      {%- set light_data = {} -%}
-      {%- if brightness_pct is defined and brightness_pct != none and brightness_pct != '' -%}
-        {%- do light_data.update({'brightness_pct': brightness_pct}) -%}
-      {%- endif -%}
-      {%- if color_temp is defined and color_temp != none and color_temp != '' -%}
-        {%- do light_data.update({'kelvin': color_temp}) -%}
-      {%- elif rgb_color is defined and rgb_color != none and rgb_color != '' -%}
-        {%- do light_data.update({'rgb_color': rgb_color}) -%}
-      {%- endif -%}
-      {{ light_data | to_json }}
+    data:
+      brightness_pct: "{{ brightness_pct if brightness_pct is defined else omit }}"
+      kelvin: "{{ color_temp if color_temp is defined else omit }}"
+      rgb_color: "{{ rgb_color if color_temp is not defined and rgb_color is defined else omit }}"
 
-  # 2. Wait for occupancy to end
-  - wait_for_trigger:
-      - platform: state
-        entity_id: !input occupancy_sensor
-        from: "on"
-        to: "off"
-
-  # 3. Wait for the specified delay
-  - delay:
+  - wait_template: "{{ expand(occupancy_entities) | selectattr('state', 'eq', 'off') | list | count == expand(occupancy_entities) | list | count }}"
+    for:
       seconds: !input turn_off_delay
 
-  # 4. Turn off the light
   - service: light.turn_off
     target: !input light_target
