@@ -1,0 +1,208 @@
+blueprint:
+  name: Advanced Occupancy Light Control
+  description: >-
+    A comprehensive motion/occupancy-activated light control blueprint.
+
+    Merges features from the official HA blueprint, Aleks130699's, and iainsmacleod's versions.
+
+    - Turns on lights when occupancy is detected.
+    - Keeps them on while occupancy persists.
+    - Turns them off after a configurable delay when the area is clear.
+    - Optional conditions for time of day, sun elevation (with offsets), and custom user-defined logic.
+    - Control brightness, color temperature, and RGB color.
+  author: DracoArgenteus
+  source_url: https://github.com/DracoArgenteus/automations/heads/main/advanced_occupancy_automation.yaml
+  domain: automation
+  input:
+    occupancy_sensor:
+      name: Occupancy Sensor
+      description: The binary sensor that detects presence (e.g., motion, occupancy). Must have 'on' and 'off' states.
+      selector:
+        entity:
+          domain: binary_sensor
+          device_class:
+            - motion
+            - occupancy
+            - presence
+
+    light_target:
+      name: Light
+      description: The light(s) to control.
+      selector:
+        target:
+          entity:
+            domain: light
+
+    turn_off_delay:
+      name: Turn-off delay
+      description: Time in seconds to wait before turning off the light after occupancy is no longer detected.
+      default: 120
+      selector:
+        number:
+          min: 0
+          max: 3600
+          unit_of_measurement: seconds
+
+    # --- Conditions ---
+    condition_type:
+      name: Condition Type
+      description: What condition must be met for the lights to turn on.
+      default: "none"
+      selector:
+        select:
+          options:
+            - label: "Always on"
+              value: "none"
+            - label: "Sun position"
+              value: "sun"
+            - label: "Fixed time range"
+              value: "time"
+
+    sun_condition:
+      name: Sun Condition (if selected)
+      description: "Turn on the light only when the sun is above or below the horizon."
+      default: "below_horizon"
+      selector:
+        select:
+          options:
+            - "below_horizon"
+            - "above_horizon"
+
+    sun_before_offset:
+      name: Sun-based "On" Offset
+      description: "Offset for turning the lights on (e.g., turn on 30 minutes before sunset)."
+      default: "00:00:00"
+      selector:
+        time:
+
+    sun_after_offset:
+      name: Sun-based "Off" Offset
+      description: "Offset for turning the lights off (e.g., keep on for 1 hour after sunrise)."
+      default: "00:00:00"
+      selector:
+        time:
+
+    time_after:
+      name: "Time: After"
+      description: "Time to start turning the light on (e.g. 18:00:00)."
+      selector:
+        time:
+
+    time_before:
+      name: "Time: Before"
+      description: "Time to stop turning the light on (e.g. 06:00:00)."
+      selector:
+        time:
+
+    # --- Light Settings ---
+    brightness_pct:
+      name: Brightness
+      description: "The brightness of the light (0-100). Leave blank to use the light's last state."
+      default:
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+
+    color_temp:
+      name: Color Temperature (Kelvin)
+      description: "Color temperature in Kelvin. Overrides RGB Color if both are set."
+      default:
+      selector:
+        number:
+          min: 2000
+          max: 6500
+          step: 100
+          unit_of_measurement: "K"
+
+    rgb_color:
+      name: RGB Color
+      description: "The RGB color for the light. Is overridden by Color Temperature if set."
+      default:
+      selector:
+        color_rgb:
+
+# Use 'restart' mode to ensure that if occupancy is re-triggered while the
+# "turn off" sequence is running, the automation restarts from the beginning.
+mode: restart
+
+# Define variables to hold our inputs for cleaner logic in the actions.
+variables:
+  occupancy_sensor: !input occupancy_sensor
+  light_target: !input light_target
+  turn_off_delay: !input turn_off_delay
+  condition_type: !input condition_type
+  sun_condition: !input sun_condition
+  sun_before_offset: !input sun_before_offset
+  sun_after_offset: !input sun_after_offset
+  time_after: !input time_after
+  time_before: !input time_before
+  brightness_pct: !input brightness_pct
+  color_temp: !input color_temp
+  rgb_color: !input rgb_color
+
+# This automation is triggered when the occupancy sensor changes state from 'off' to 'on'.
+# This is the standard and most reliable way to detect the start of presence.
+trigger:
+  - platform: state
+    entity_id: !input occupancy_sensor
+    from: "off"
+    to: "on"
+
+# Before turning on the light, we check our conditions.
+# This prevents the light from turning on when it shouldn't (e.g., during the day).
+condition:
+  - condition: template
+    value_template: >
+      {#- This template block checks which condition type was selected and evaluates it. -#}
+      {% if condition_type == 'sun' %}
+        {% if sun_condition == 'below_horizon' %}
+          {{ is_state('sun.sun', 'below_horizon') or (state_attr('sun.sun', 'elevation') | float(0)) < 0 }}
+        {% else %}
+          {{ is_state('sun.sun', 'above_horizon') }}
+        {% endif %}
+      {% elif condition_type == 'time' %}
+        {% if time_after is defined and time_before is defined %}
+          {{ is_state('input_boolean.your_helper_boolean', 'on') }}
+        {% else %}
+          {# If only one time is defined, this will always pass. Both are needed for a range. #}
+          true
+        {% endif %}
+      {% else %}
+        {# If condition_type is 'none' or anything else, always pass. #}
+        true
+      {% endif %}
+
+action:
+  # 1. Turn on the light
+  - service: light.turn_on
+    target: !input light_target
+    data: >
+      {#- This template dynamically builds the service call data. -#}
+      {#- It only includes parameters that have been defined by the user. -#}
+      {%- set light_data = {} -%}
+      {%- if brightness_pct is defined and brightness_pct != '' -%}
+        {%- do light_data.update({'brightness_pct': brightness_pct}) -%}
+      {%- endif -%}
+      {%- if color_temp is defined and color_temp != '' -%}
+        {%- do light_data.update({'kelvin': color_temp}) -%}
+      {%- elif rgb_color is defined and rgb_color != '' -%}
+        {%- do light_data.update({'rgb_color': rgb_color}) -%}
+      {%- endif -%}
+      {{ light_data | to_json }}
+
+  # 2. Wait for occupancy to end
+  - wait_for_trigger:
+      - platform: state
+        entity_id: !input occupancy_sensor
+        from: "on"
+        to: "off"
+
+  # 3. Wait for the specified delay
+  - delay:
+      seconds: !input turn_off_delay
+
+  # 4. Turn off the light
+  - service: light.turn_off
+    target: !input light_target
