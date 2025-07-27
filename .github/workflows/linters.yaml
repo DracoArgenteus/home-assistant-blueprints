@@ -41,6 +41,7 @@ jobs:
       - name: 🚀 Prettify code
         uses: creyD/prettier_action@v4.6
         with:
-          rettier_options: --write **/*.{json,js,md,yaml}
+          # prettier_options: --write **/*.{json,js,md,yaml}
+          prettier_options: --write **/*.{md,yaml}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
