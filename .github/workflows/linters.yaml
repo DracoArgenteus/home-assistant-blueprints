@@ -1,6 +1,6 @@
 ---
 # linters.yaml
-# Based on: 
+# Based on:
 # - https://github.com/zanix/home-assistant-blueprints/
 # - https://github.com/frenck/action-home-assistant
 # - https://github.com/creyD/prettier_action

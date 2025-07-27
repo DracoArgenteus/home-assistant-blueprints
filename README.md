@@ -4,13 +4,12 @@
 | ----- | ----- |
 | [![GitHub issues][issues-shield]][issues] [![Linter Status][linter-status-shield]][linter-status] [![Last Commit][last-commit-shield]][last-commit] [![Commits][commits-shield]][commits] | [![Home Assistant Community Forum][forum-shield]][forum]<br>[![Discord][discord-shield]][discord]
 
-<!-- | DracoArgenteus/home-assistant-blueprints | Home Assistant Community |
-| ----- | ----- |
-| [![GitHub issues][issues-shield]][issues] [![GitHub pull requests][pull-requests-shield]][pull-requests] [![GitHub forks][forks-shield]][forks] [![GitHub stars][stars-shield]][stars]<br>[![Linter Status][linter-status-shield]][linter-status] [![Last Commit][last-commit-shield]][last-commit] [![Commits][commits-shield]][commits] | [![Home Assistant Community Forum][forum-shield]][forum]<br>[![Discord][discord-shield]][discord] -->
 
 ## Current Blueprints
 
-## Some Blueprint
+## Advanced Occupancy Light Control
+
+[![Import Blueprint][blueprint-import-button]](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FDracoArgenteus%2Fhome-assistant-blueprints%2Fblob%2Fmain%2Fautomations%2Fadvanced_occupancy_automation.yaml)
 
 
 ---
@@ -18,14 +17,14 @@
 [issues]: https://github.com/DracoArgenteus/home-assistant-blueprints/issues
 [issues-shield]: https://img.shields.io/github/issues/DracoArgenteus/home-assistant-blueprints?style=flat-square
 
-[pull-requests]: https://github.com/DracoArgenteus/home-assistant-blueprints/pulls
-[pull-requests-shield]: https://img.shields.io/github/issues-pr/DracoArgenteus/home-assistant-blueprints?style=flat-square
+<!-- [pull-requests]: https://github.com/DracoArgenteus/home-assistant-blueprints/pulls
+[pull-requests-shield]: https://img.shields.io/github/issues-pr/DracoArgenteus/home-assistant-blueprints?style=flat-square -->
 
-[forks]: https://github.com/DracoArgenteus/home-assistant-blueprints/network
-[forks-shield]: https://img.shields.io/github/forks/DracoArgenteus/home-assistant-blueprints?style=flat-square
+<!-- [forks]: https://github.com/DracoArgenteus/home-assistant-blueprints/network
+[forks-shield]: https://img.shields.io/github/forks/DracoArgenteus/home-assistant-blueprints?style=flat-square -->
 
-[stars]: https://github.com/DracoArgenteus/home-assistant-blueprints/stargazers
-[stars-shield]: https://img.shields.io/github/stars/DracoArgenteus/home-assistant-blueprints?style=flat-square
+<!-- [stars]: https://github.com/DracoArgenteus/home-assistant-blueprints/stargazers
+[stars-shield]: https://img.shields.io/github/stars/DracoArgenteus/home-assistant-blueprints?style=flat-square -->
 
 [linter-status]: https://github.com/DracoArgenteus/home-assistant-blueprints/actions/workflows/linters.yaml
 [linter-status-shield]: https://img.shields.io/github/actions/workflow/status/DracoArgenteus/home-assistant-blueprints/linters.yaml?branch=main&style=flat-square&label=linters&logo=github-actions&logoColor=838B95
