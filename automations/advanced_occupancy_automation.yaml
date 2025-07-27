@@ -3,17 +3,21 @@ blueprint:
   name: Advanced Occupancy Light Control
   description: >-
     A comprehensive motion/occupancy-activated light control blueprint.
-    Turns on lights when occupancy is detected and turns them off after a delay.
-    Includes advanced, optional conditions for sun position and fixed time ranges.
+    Turns on lights when occupancy is detected across one or more sensors.
+    Turns them off after a delay when the entire area is clear.
+    Includes advanced, optional conditions for sun position (with offsets)
     Based on blueprints by @Aleks130699, @iainsmacleod, and @home-assistant.
   author: DracoArgenteus
-  source_url: https://github.com/DracoArgenteus/automations/heads/main/advanced_occupancy_automation.yaml
+  source_url: >-
+    https://github.com/DracoArgenteus/automations/heads/main/advanced_occupancy_automation.yaml
   domain: automation
 
   input:
     occupancy_sensor:
       name: Occupancy Sensor(s)
-      description: The binary sensor(s) that detect presence. The automation will trigger if any turn on, and wait for all to turn off.
+      description: >-
+        The binary sensor(s) that detect presence. The automation will
+        trigger if any turn on, and wait for all to turn off.
       selector:
         entity:
           domain: binary_sensor
@@ -33,7 +37,9 @@ blueprint:
 
     turn_off_delay:
       name: Turn-off delay
-      description: Time to wait before turning off the light after occupancy is no longer detected.
+      description: >-
+        Time to wait before turning off the light after all occupancy sensors
+        are clear.
       default: 120
       selector:
         number:
@@ -58,7 +64,8 @@ blueprint:
 
     sun_condition_mode:
       name: Sun Condition
-      description: "Turn on the light only when the sun is above or below the horizon."
+      description: >-
+        Turn on the light only when the sun is above or below the horizon.
       default: "below_horizon"
       selector:
         select:
@@ -70,7 +77,9 @@ blueprint:
 
     sunset_offset:
       name: Sunset Offset (for Sun condition)
-      description: "Optional offset to start the 'below horizon' period earlier (e.g., '00:30:00' to start 30 mins before sunset)."
+      description: >-
+        Optional offset to start the 'below horizon' period earlier (e.g.,
+        '00:30:00' to start 30 mins before sunset).
       default: "00:00:00"
       selector:
         time:
@@ -79,7 +88,9 @@ blueprint:
 
     sunrise_offset:
       name: Sunrise Offset (for Sun condition)
-      description: "Optional offset to end the 'below horizon' period later (e.g., '00:30:00' to end 30 mins after sunrise)."
+      description: >-
+        Optional offset to end the 'below horizon' period later (e.g.,
+        '00:30:00' to end 30 mins after sunrise).
       default: "00:00:00"
       selector:
         time:
@@ -105,7 +116,9 @@ blueprint:
     # --- Light Settings ---
     brightness_pct:
       name: Brightness
-      description: "The brightness of the light (0-100). Leave blank to use the light's last state."
+      description: >-
+        The brightness of the light (0-100). Leave blank to use the light's
+        last state.
       default:
       selector:
         number:
@@ -126,7 +139,9 @@ blueprint:
 
     rgb_color:
       name: RGB Color
-      description: "The RGB color for the light. Is overridden by Color Temperature if set."
+      description: >-
+        The RGB color for the light. Is overridden by Color Temperature if
+        set.
       default:
       selector:
         color_rgb:
@@ -185,11 +200,16 @@ action:
   - service: light.turn_on
     target: !input light_target
     data:
-      brightness_pct: "{{ brightness_pct if brightness_pct is defined else omit }}"
+      brightness_pct: >-
+        "{{ brightness_pct if brightness_pct is defined else omit }}"
       kelvin: "{{ color_temp if color_temp is defined else omit }}"
-      rgb_color: "{{ rgb_color if color_temp is not defined and rgb_color is defined else omit }}"
+      rgb_color: >-
+        {{ rgb_color if color_temp is not defined and rgb_color is defined
+        else omit }}
 
-  - wait_template: "{{ expand(occupancy_entities) | selectattr('state', 'eq', 'off') | list | count == expand(occupancy_entities) | list | count }}"
+  - wait_template: >-
+      {{ expand(occupancy_entities) | selectattr('state', 'eq', 'off') | list
+      | count == expand(occupancy_entities) | list | count }}
     for:
       seconds: !input turn_off_delay
 
