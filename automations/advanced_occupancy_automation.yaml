@@ -13,7 +13,6 @@ blueprint:
   source_url: >-
     https://github.com/DracoArgenteus/automations/heads/main/advanced_occupancy_automation.yaml
   domain: automation
-
   input:
     occupancy_sensor:
       name: Occupancy Sensor(s)
@@ -107,7 +106,7 @@ blueprint:
     time_start:
       name: "Time: Start (for Time condition)"
       description: "Time to start turning the entity on (e.g. 18:00:00)."
-      default: ''
+      default: ""
       selector:
         time:
       icon: mdi:clock-start
@@ -115,7 +114,7 @@ blueprint:
     time_end:
       name: "Time: End (for Time condition)"
       description: "Time to stop turning the entity on (e.g. 06:00:00)."
-      default: ''
+      default: ""
       selector:
         time:
       icon: mdi:clock-end
