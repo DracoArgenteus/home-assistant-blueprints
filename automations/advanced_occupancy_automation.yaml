@@ -2,12 +2,14 @@
 blueprint:
   name: Advanced Occupancy Light Control
   description: >-
-    A comprehensive motion/occupancy-activated light control blueprint.
-    Turns on lights when occupancy is detected across one or more sensors.
-    Turns them off after a delay when the entire area is clear.
-    Includes advanced, optional conditions for sun position (with offsets)
+    A comprehensive motion/occupancy-activated control blueprint for lights,
+    switches, fans, and more. Turns on entities when occupancy is detected
+    and turns them off after a delay. Includes advanced, optional conditions
+    for sun position and fixed time ranges.
     Based on blueprints by @Aleks130699, @iainsmacleod, and @home-assistant.
   author: DracoArgenteus
+  homeassistant:
+    min_version: "2024.6.0"
   source_url: >-
     https://github.com/DracoArgenteus/automations/heads/main/advanced_occupancy_automation.yaml
   domain: automation
@@ -26,19 +28,25 @@ blueprint:
             - motion
             - occupancy
             - presence
+      icon: mdi:motion-sensor
 
-    light_target:
-      name: Light
-      description: The light(s) to control.
+    target_entity:
+      name: Target Entity
+      description: The entity or entities to control (e.g., light, switch, fan).
       selector:
         target:
           entity:
-            domain: light
+            domain:
+              - light
+              - switch
+              - fan
+              - input_boolean
+      icon: mdi:power-plug
 
     turn_off_delay:
       name: Turn-off delay
       description: >-
-        Time to wait before turning off the light after all occupancy sensors
+        Time to wait before turning off the entity after all occupancy sensors
         are clear.
       default: 120
       selector:
@@ -46,11 +54,12 @@ blueprint:
           min: 0
           max: 3600
           unit_of_measurement: seconds
+      icon: mdi:timer-sand
 
     # --- Conditions ---
     condition_type:
       name: Condition Type
-      description: What condition must be met for the lights to turn on.
+      description: What condition must be met for the entities to turn on.
       default: "none"
       selector:
         select:
@@ -61,17 +70,19 @@ blueprint:
               value: "sun"
             - label: "Fixed Time Range"
               value: "time"
+      icon: mdi:form-select
 
     sun_condition_mode:
       name: Sun Condition (if type is Sun)
       description: >-
-        Turn on the light only when the sun is above or below the horizon.
+        Turn on the entity only when the sun is above or below the horizon.
       default: "below_horizon"
       selector:
         select:
           options:
             - "below_horizon"
             - "above_horizon"
+      icon: mdi:weather-sunny
 
     sunset_offset:
       name: Sunset Offset (for Sun condition)
@@ -81,6 +92,7 @@ blueprint:
       default: "00:00:00"
       selector:
         time:
+      icon: mdi:weather-sunset-down
 
     sunrise_offset:
       name: Sunrise Offset (for Sun condition)
@@ -90,58 +102,67 @@ blueprint:
       default: "00:00:00"
       selector:
         time:
+      icon: mdi:weather-sunset-up
 
     time_start:
       name: "Time: Start (for Time condition)"
-      description: "Time to start turning the light on (e.g. 18:00:00)."
-      default: "00:00:00"
+      description: "Time to start turning the entity on (e.g. 18:00:00)."
+      default: ''
       selector:
         time:
+      icon: mdi:clock-start
 
     time_end:
       name: "Time: End (for Time condition)"
-      description: "Time to stop turning the light on (e.g. 06:00:00)."
-      default: "00:00:00"
+      description: "Time to stop turning the entity on (e.g. 06:00:00)."
+      default: ''
       selector:
         time:
+      icon: mdi:clock-end
 
-    # --- Light Settings ---
+    # --- Light Settings (only apply to light entities) ---
     brightness_pct:
       name: Brightness
       description: >-
-        The brightness of the light (0-100). Leave blank to use the light's
-        last state.
+        (Optional, Lights Only) The brightness of the light (0-100). Leave
+        blank to use the light's last state.
       default:
       selector:
         number:
           min: 0
           max: 100
           unit_of_measurement: "%"
+      icon: mdi:brightness-6
 
     color_temp:
       name: Color Temperature (Kelvin)
-      description: "Color temperature in Kelvin. Overrides RGB Color if set."
+      description: >-
+        (Optional, Lights Only) Color temperature in Kelvin. Overrides RGB
+        Color if set.
       default:
       selector:
         number:
           min: 2000
-          max: 650
+          max: 6500
           step: 100
           unit_of_measurement: "K"
+      icon: mdi:thermometer
 
     rgb_color:
       name: RGB Color
       description: >-
-        The RGB color for the light. Is overridden by Color Temperature if
-        set.
+        (Optional, Lights Only) The RGB color for the light. Is overridden
+        by Color Temperature if set.
       default:
       selector:
         color_rgb:
+      icon: mdi:palette
 
 mode: restart
 
 variables:
   occupancy_entities: !input occupancy_sensor
+  target_entity: !input target_entity
   condition_type: !input condition_type
   sun_condition_mode: !input sun_condition_mode
   sunset_offset: !input sunset_offset
@@ -172,7 +193,7 @@ condition:
           {{ now() >= (sunset - sunset_offset_delta) or now() <= (sunrise + sunrise_offset_delta) }}
         {% endif %}
       {% elif condition_type == 'time' %}
-        {% if time_start is defined and time_start != none and time_end is defined and time_end != none %}
+        {% if time_start and time_end %}
           {% set time_now = now() %}
           {% set time_start_obj = today_at(time_start) %}
           {% set time_end_obj = today_at(time_end) %}
@@ -189,8 +210,8 @@ condition:
       {% endif %}
 
 action:
-  - service: light.turn_on
-    target: !input light_target
+  - service: homeassistant.turn_on
+    target: !input target_entity
     data:
       brightness_pct: "{{ brightness_pct if brightness_pct not in [none, ''] else omit }}"
       kelvin: "{{ color_temp if color_temp not in [none, ''] else omit }}"
@@ -204,5 +225,5 @@ action:
     for:
       seconds: !input turn_off_delay
 
-  - service: light.turn_off
-    target: !input light_target
+  - service: homeassistant.turn_off
+    target: !input target_entity
