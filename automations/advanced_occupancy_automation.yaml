@@ -27,7 +27,6 @@ blueprint:
             - motion
             - occupancy
             - presence
-      icon: mdi:motion-sensor
 
     target_entity:
       name: Target Entity
@@ -40,7 +39,6 @@ blueprint:
               - switch
               - fan
               - input_boolean
-      icon: mdi:power-plug
 
     turn_off_delay:
       name: Turn-off delay
@@ -53,7 +51,6 @@ blueprint:
           min: 0
           max: 3600
           unit_of_measurement: seconds
-      icon: mdi:timer-sand
 
     # --- Conditions ---
     condition_type:
@@ -69,7 +66,6 @@ blueprint:
               value: "sun"
             - label: "Fixed Time Range"
               value: "time"
-      icon: mdi:form-select
 
     sun_condition_mode:
       name: Sun Condition (if type is Sun)
@@ -81,7 +77,6 @@ blueprint:
           options:
             - "below_horizon"
             - "above_horizon"
-      icon: mdi:weather-sunny
 
     sunset_offset:
       name: Sunset Offset (for Sun condition)
@@ -91,7 +86,6 @@ blueprint:
       default: "00:00:00"
       selector:
         time:
-      icon: mdi:weather-sunset-down
 
     sunrise_offset:
       name: Sunrise Offset (for Sun condition)
@@ -101,7 +95,6 @@ blueprint:
       default: "00:00:00"
       selector:
         time:
-      icon: mdi:weather-sunset-up
 
     time_start:
       name: "Time: Start (for Time condition)"
@@ -109,7 +102,6 @@ blueprint:
       default: ""
       selector:
         time:
-      icon: mdi:clock-start
 
     time_end:
       name: "Time: End (for Time condition)"
@@ -117,7 +109,6 @@ blueprint:
       default: ""
       selector:
         time:
-      icon: mdi:clock-end
 
     # --- Light Settings (only apply to light entities) ---
     brightness_pct:
@@ -131,7 +122,6 @@ blueprint:
           min: 0
           max: 100
           unit_of_measurement: "%"
-      icon: mdi:brightness-6
 
     color_temp:
       name: Color Temperature (Kelvin)
@@ -145,7 +135,6 @@ blueprint:
           max: 6500
           step: 100
           unit_of_measurement: "K"
-      icon: mdi:thermometer
 
     rgb_color:
       name: RGB Color
@@ -155,7 +144,6 @@ blueprint:
       default:
       selector:
         color_rgb:
-      icon: mdi:palette
 
 mode: restart
 
