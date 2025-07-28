@@ -200,12 +200,17 @@ condition:
 action:
   - service: homeassistant.turn_on
     target: !input target_entity
-    data:
-      brightness_pct: "{{ brightness_if brightness_pct not in [none, ''] else omit }}"
-      kelvin: "{{ color_temp if color_temp not in [none, ''] else omit }}"
-      rgb_color: >-
-        {{ rgb_color if color_temp in [none, ''] and rgb_color not in [none, '']
-        else omit }}
+    data: >
+      {% set data = {} %}
+      {% if brightness_pct is defined and brightness_pct not in [none, ''] %}
+        {% set _ = data.update({'brightness_pct': brightness_pct}) %}
+      {% endif %}
+      {% if color_temp is defined and color_temp not in [none, ''] %}
+        {% set _ = data.update({'kelvin': color_temp}) %}
+      {% elif rgb_color is defined and rgb_color not in [none, ''] %}
+        {% set _ = data.update({'rgb_color': rgb_color}) %}
+      {% endif %}
+      {{ data }}
 
   - wait_template: >-
       {{ expand(occupancy_entities) | selectattr('state', 'eq', 'off') | list
@@ -216,3 +221,4 @@ action:
 
   - service: homeassistant.turn_off
     target: !input target_entity
+
