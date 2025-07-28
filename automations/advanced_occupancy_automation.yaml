@@ -45,7 +45,7 @@ blueprint:
       description: >-
         Time to wait before turning off the entity after all occupancy sensors
         are clear.
-      default: 120
+      default: 90
       selector:
         number:
           min: 0
@@ -83,7 +83,8 @@ blueprint:
       description: >-
         Optional offset to start the 'below horizon' period earlier (e.g.,
         '00:30:00' to start 30 mins before sunset).
-      default: "00:00:00"
+      # default: "00:00:00"
+      default: ""
       selector:
         time:
 
@@ -92,7 +93,7 @@ blueprint:
       description: >-
         Optional offset to end the 'below horizon' period later (e.g.,
         '00:30:00' to end 30 mins after sunrise).
-      default: "00:00:00"
+      default: ""
       selector:
         time:
 
@@ -200,7 +201,7 @@ action:
   - service: homeassistant.turn_on
     target: !input target_entity
     data:
-      brightness_pct: "{{ brightness_pct if brightness_pct not in [none, ''] else omit }}"
+      brightness_pct: "{{ brightness_if brightness_pct not in [none, ''] else omit }}"
       kelvin: "{{ color_temp if color_temp not in [none, ''] else omit }}"
       rgb_color: >-
         {{ rgb_color if color_temp in [none, ''] and rgb_color not in [none, '']
@@ -209,7 +210,8 @@ action:
   - wait_template: >-
       {{ expand(occupancy_entities) | selectattr('state', 'eq', 'off') | list
       | count == expand(occupancy_entities) | list | count }}
-    for:
+
+  - delay:
       seconds: !input turn_off_delay
 
   - service: homeassistant.turn_off
