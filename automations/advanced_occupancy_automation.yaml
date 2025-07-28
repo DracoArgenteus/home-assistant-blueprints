@@ -221,4 +221,3 @@ action:
 
   - service: homeassistant.turn_off
     target: !input target_entity
-
